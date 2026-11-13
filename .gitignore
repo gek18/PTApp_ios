@@ -1,0 +1,36 @@
+# Flutter/Dart generated output
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+*.iml
+
+# Flutter generated platform configuration
+android/local.properties
+android/.gradle/
+android/**/build/
+android/key.properties
+*.jks
+*.keystore
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/.symlinks/
+ios/Runner.xcworkspace/xcuserdata/
+macos/Flutter/GeneratedPluginRegistrant.swift
+macos/Flutter/ephemeral/
+macos/Pods/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Local diagnostics and legacy generated iOS backup
+runlog.txt
+ios_backup/
+
+# Editor and operating system files
+.idea/
+.DS_Store
+Thumbs.db

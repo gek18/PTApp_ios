@@ -1,0 +1,121 @@
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+final locationRepositoryProvider = Provider((ref) => LocationRepository());
+
+class LocationData {
+  final double latitude;
+  final double longitude;
+  final String city;
+
+  LocationData({
+    required this.latitude,
+    required this.longitude,
+    required this.city,
+  });
+}
+
+class LocationRepository {
+  static const String _kCachedLat = 'cached_lat';
+  static const String _kCachedLon = 'cached_lon';
+  static const String _kCachedCity = 'cached_city';
+
+  Future<LocationData?> loadCachedLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final lat = prefs.getDouble(_kCachedLat);
+    final lon = prefs.getDouble(_kCachedLon);
+    final city = prefs.getString(_kCachedCity);
+
+    if (lat != null && lon != null && city != null) {
+      return LocationData(latitude: lat, longitude: lon, city: city);
+    }
+    return null;
+  }
+
+  Future<LocationData> fetchCurrentLocation({
+    double? oldLat,
+    double? oldLon,
+  }) async {
+    final isEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!isEnabled) {
+      throw Exception("Location services are disabled.");
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception("Location permission permanently denied.");
+    }
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception("Location permission denied.");
+      }
+    }
+
+    Position? position = await Geolocator.getLastKnownPosition();
+
+    try {
+      position ??= await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    } catch (_) {
+      throw Exception("Failed to get location");
+    }
+
+    if (oldLat != null && oldLon != null) {
+      final distance = Geolocator.distanceBetween(
+        oldLat,
+        oldLon,
+        position.latitude,
+        position.longitude,
+      );
+
+      if (distance < 1000) {
+        final cached = await loadCachedLocation();
+        return LocationData(
+          latitude: oldLat,
+          longitude: oldLon,
+          city: cached?.city ?? "مدينة غير معروفة",
+        );
+      }
+    }
+
+    String cityName = "مدينة غير معروفة";
+
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+
+        cityName = p.locality?.trim().isNotEmpty == true
+            ? p.locality!
+            : p.administrativeArea ?? "مدينة غير معروفة";
+      }
+    } catch (_) {
+      cityName = "مدينة غير معروفة";
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kCachedLat, position.latitude);
+    await prefs.setDouble(_kCachedLon, position.longitude);
+    await prefs.setString(_kCachedCity, cityName);
+
+    return LocationData(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      city: cityName,
+    );
+  }
+}
